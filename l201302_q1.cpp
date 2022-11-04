@@ -171,6 +171,78 @@ bool containsDelim(string delim){
 	return false;
 }
 
+int numberOfCommands(char* buffer, char*& operations){
+	int size = 0;
+	
+	for(int index = 0; index < strlen(buffer); index++)
+	{
+		if (checkDelim(buffer, index))
+			size++;
+	}
+	//cout << "Size is: " << size << endl;
+
+	operations = new char[size  +2];
+	int counter = 0;
+	for (int index = 0; index < strlen(buffer); index++){
+		if (checkDelim(buffer, index)){
+			operations[counter] = buffer[index];
+			counter++;
+		}
+	}
+	
+
+	return size;
+}
+
+char** getAllCommands(char* buffer, int& noOfCmd, char*& operations){
+	noOfCmd = numberOfCommands(buffer, operations)  +1;
+	
+	char** allCommands = new char*[noOfCmd];
+	int counter = 0;
+
+	for (int i = 0; i < strlen(buffer); ) {
+		int startIndex = i;
+		bool flag = true;
+		char* tempCommand = nullptr;
+
+		while(flag == true && i < strlen(buffer)){
+			if (checkDelim(buffer, i) || i == strlen(buffer) - 1){
+				
+				if (buffer[i] == '|' ){
+					tempCommand = returnBackString(buffer, startIndex, i - 2);
+				}
+				else {
+					if (i == strlen(buffer) - 1){
+						tempCommand = returnBackString(buffer, startIndex + 1, i);
+					}
+					else{
+						if (buffer[i] == '0' || buffer[i] == '1' || buffer[i] == '>' || buffer[i] == '<') {
+							tempCommand = returnBackString(buffer, startIndex, i - 2);
+							tempCommand = returnForwardString(buffer, i + 2);
+						}
+					}
+				}
+				flag = false;
+				
+			}	
+			i++;
+		}
+		allCommands[counter] = tempCommand;
+		//cout << allCommands[counter] << endl;
+		counter++;
+	}
+	return allCommands;
+}
+
+void runPipeCommand(char** command, int fd[]){
+	cout << "Execuing pipe";
+	char * temp = new char[strlen(command[0])];
+		
+		strcpy(temp,"/bin/");
+		strcpy(temp,command[0]); // copying command
+	//execvp(temp,command,"res.txt");
+}	
+
 int main() {
 
 	
@@ -203,87 +275,61 @@ int main() {
 				}
 				else {
 						char* str = getCharArray(buffer);
+
 						char** command = nullptr;
-						int size = 0;
+						int noOfCmd = 0;
+						char* operations = nullptr;
 
-						int forkFlag = false;
-						for (int i = 0; i < buffer.size(); ) {
-							int startIndex = i;
-							bool flag = true;
-							char* tempCommand = nullptr;
-
-							while(flag == true && i < buffer.size()){
-								if (checkDelim(str, i) || i == buffer.size() - 1){
-									
-									if (str[i] == '|' ){
-										tempCommand = returnBackString(str, startIndex, i - 2);
-									}
-									else {
-										if (i == buffer.size() - 1){
-											tempCommand = returnBackString(str, startIndex + 1, i);
-										}
-										else{
-											if (str[i] == '0' || str[i] == '1' || str[i] == '>' || str[i] == '<') {
-												tempCommand = returnBackString(str, startIndex, i - 2);
-												//cout << "Command 1:";
-												//printCommand(command, size);
-												//runCommand(command);
-												tempCommand = returnForwardString(str, i + 2);
-												//runCommand(command);
-											}
-										}
-									}
-									flag = false;
-									
-								}	
-								i++;
-							}
-							if (forkFlag == false){
-								int fd[2];
-								int pipeStatus = pipe(fd);
+						char** commands = getAllCommands(str, noOfCmd, operations);
+						//cout << "Number of commands: " << noOfCmd << endl;
 						
-								pid_t retVal = fork();
+						//printCommand(commands,noOfCmd);
+						int fd[2];
+						pipe(fd);
 
-								if (retVal < 0){
-									cout << "Error while forking"<< endl;
-									perror("fork");
-								}
 						
+						for (int i=0; i < noOfCmd; i++){
 
-								if (retVal > 0 ){
-									int tempSize = strlen(tempCommand);
-									char cmd[tempSize];
-									strcpy(cmd ,tempCommand);
+							int length = strlen(commands[i]);
+
+							char cmd[length];
+							strcpy(cmd, commands[i]);
+
+							pid_t retVal = fork();
+							if (retVal > 0) {// parent
 								
-									write(fd[1], &tempSize , sizeof(int));
-									write(fd[1], &cmd, tempSize);
-									wait(NULL);
-									close(fd[0]);
-									close(fd[1]);
-								}
-
-								if (retVal == 0){
-									int commandSize = 0;
-									read (fd[0], &commandSize, sizeof(int));
-//									cout << "Command size: " << commandSize << endl;
-
-									char tempCommand[commandSize + 1];
-									read (fd[0], &tempCommand, commandSize);
-
-									tempCommand[commandSize] = '\0';
-									//cout << "Command read: "<< tempCommand << endl;
-									int s = 0;
-									char** command = getCommand(tempCommand,s);
-									
-									dup2(fd[1],1);
-									runCommand(command);
-									close(fd[0]);
-									close(fd[1]);
-								}
+								write(fd[1], &length , sizeof(int));
+								write(fd[1], &cmd, length);
+							
+								wait(NULL);
+								
+								close(fd[0]);
+								close(fd[1]);
 							}
-						}
-						
-				}
+
+ 
+							if (retVal == 0){
+																
+								int commandSize = 0;
+								read(fd[0], &commandSize, sizeof(int));
+								
+								
+								char cmd[commandSize  +1];
+								read(fd[0], &cmd, commandSize);
+								cmd[commandSize] = '\0';
+								cout << cmd << endl;
+								
+								
+								close(fd[0]);
+								close(fd[1]);
+							}
+
+							if (retVal < 0 ){
+								cout << "Fork error" << endl;
+								perror("fork");
+							}
+						}		
+					}
 			}
 			
 			if (id < 0){ // failed fork 
@@ -293,7 +339,7 @@ int main() {
 			}
 		}
 		else {
-			 flag = true;	// to stop the program
+			return 0;	// to stop the program
 		}
 	}	
 	return 0;
