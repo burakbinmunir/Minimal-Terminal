@@ -234,13 +234,17 @@ char** getAllCommands(char* buffer, int& noOfCmd, char*& operations){
 	return allCommands;
 }
 
-void runPipeCommand(char** command, int fd[]){
-	cout << "Execuing pipe";
-	char * temp = new char[strlen(command[0])];
+void runPipeCommand(char* command, int index, int fd[]){
+	int s =0;
+	char** cmd = getCommand(command,s);
+	printCommand(cmd, s);
+	char* temp = new char[strlen(cmd[0]) + strlen("/bin/")];
 		
-		strcpy(temp,"/bin/");
-		strcpy(temp,command[0]); // copying command
-	//execvp(temp,command,"res.txt");
+	strcpy(temp,"/bin/");
+	strcat(temp,cmd[0]); // copying command
+	cout <<temp << " " << command << endl;
+	if (execlp(temp,cmd[0],cmd[1], NULL) < 0)
+		cout << "Error prone command\n\n";
 }	
 
 int main() {
@@ -283,52 +287,52 @@ int main() {
 						char** commands = getAllCommands(str, noOfCmd, operations);
 						//cout << "Number of commands: " << noOfCmd << endl;
 						
-						//printCommand(commands,noOfCmd);
-						int fd[2];
-						pipe(fd);
-
 						
-						for (int i=0; i < noOfCmd; i++){
-
-							int length = strlen(commands[i]);
-
-							char cmd[length];
-							strcpy(cmd, commands[i]);
-
+						for (int i =0; i < noOfCmd; i++){
+							int fd[2];
+							pipe(fd);
 							pid_t retVal = fork();
-							if (retVal > 0) {// parent
-								
-								write(fd[1], &length , sizeof(int));
-								write(fd[1], &cmd, length);
-							
+
+							if (retVal > 0){
+								int len = strlen(commands[i]);
+
+								char tempCmd [len];
+								strcpy (tempCmd, commands[i]);
+
+								write(fd[1], &len, sizeof(int));
+								write(fd[1],&tempCmd, len);
+
 								wait(NULL);
-								
-								close(fd[0]);
+
 								close(fd[1]);
+								close(fd[0]);
 							}
 
- 
-							if (retVal == 0){
-																
-								int commandSize = 0;
-								read(fd[0], &commandSize, sizeof(int));
+	                        if (retVal == 0) {
+								int len = 0;
+
+								read(fd[0], &len , sizeof(int));
+
+								char tempCmd [len + 1];
+								read(fd[0], &tempCmd, len);
+								tempCmd [len] = '\0';
+								cout << "Command going to run: " << tempCmd << endl << endl;
+								runPipeCommand(tempCmd,i,fd);	
+
 								
-								
-								char cmd[commandSize  +1];
-								read(fd[0], &cmd, commandSize);
-								cmd[commandSize] = '\0';
-								cout << cmd << endl;
-								
-								
-								close(fd[0]);
 								close(fd[1]);
+								close(fd[0]);
 							}
 
-							if (retVal < 0 ){
-								cout << "Fork error" << endl;
+							if (retVal < 0){
+								cout << "Error in forking";
 								perror("fork");
 							}
-						}		
+						}
+						
+
+
+						
 					}
 			}
 			
