@@ -242,18 +242,6 @@ void runPipeCommand(char* command, int index, int fd[]){
 	strcpy(temp,"/bin/");
 	strcpy(temp,cmd[0]); // copying command
 
-	if (index == 0){
-		close(1);
-		dup2(fd[1], 1);
-	}
-
-	if (index == 1){
-		char buf[1000];
-		read(fd[0],&buf,1000);
-		cout << buf;
-	}
-	execvp(temp , cmd);
-		
 	close(fd[0]);
 	close(fd[1]);
 }	
@@ -299,52 +287,31 @@ int main() {
 						//cout << "Number of commands: " << noOfCmd << endl;
 						int fd[2];
 						pipe(fd);
-						int std_out = dup(1);
+						
 						for (int i =0; i < noOfCmd; i++){
 							
 							pid_t retVal = fork();
-
+							char* cmd = commands[i];
+							
 							if (retVal > 0){
-								int len = strlen(commands[i]);
-
-								char tempCmd [len];
-								strcpy (tempCmd, commands[i]);
-
-								write(fd[1], &len, sizeof(int));
-								write(fd[1],&tempCmd, len);
-
 								wait(NULL);
-
-								// close(fd[1]);
-								// close(fd[0]);
+								cout << "Paren";
+								close(fd[1]);
+								dup2(fd[0], STDIN_FILENO);
+								close(fd[0]);
+								int s =0; 
+								char** runCmd = getCommand(cmd,s);
+								execvp(runCmd[0],runCmd);
 							}
 
 	                        if (retVal == 0) {
-								int len = 0;
-
-								read(fd[0], &len , sizeof(int));
-
-								char tempCmd [len + 1];
-								read(fd[0], &tempCmd, len);
-								tempCmd [len] = '\0';
-								cout << "Command going to run: " << tempCmd << endl << endl;
-								//runPipeCommand(tempCmd,i,fd);
-								
-								if (i == 0 ){
-									
-									dup2(fd[1],1);
-
+								cout << "chi;d";
+								if (operations[0] == '|'){
+									dup2(fd[1], 1);
+									//close(fd[1]);
 									int s =0;
-									char** cmd = getCommand(tempCmd, s);
-									execvp(cmd[0], cmd);
-								}
-
-								if (i == 1){
-									dup2(fd[0],0);
-									dup2(fd[1],std_out);
-									int s =0;
-									char** cmd = getCommand(tempCmd, s);
-									execvp(cmd[0], cmd);
+									char** runCmd = getCommand(cmd,s);
+									execvp(runCmd[0], runCmd);
 								}
 							}
 
