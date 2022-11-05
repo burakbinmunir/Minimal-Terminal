@@ -235,16 +235,27 @@ char** getAllCommands(char* buffer, int& noOfCmd, char*& operations){
 }
 
 void runPipeCommand(char* command, int index, int fd[]){
-	int s =0;
-	char** cmd = getCommand(command,s);
-	printCommand(cmd, s);
-	char* temp = new char[strlen(cmd[0]) + strlen("/bin/")];
+	int size = 0;
+	char** cmd = getCommand(command, size);
+	char * temp = new char[strlen(cmd[0])];
 		
 	strcpy(temp,"/bin/");
-	strcat(temp,cmd[0]); // copying command
-	cout <<temp << " " << command << endl;
-	if (execlp(temp,cmd[0],cmd[1], NULL) < 0)
-		cout << "Error prone command\n\n";
+	strcpy(temp,cmd[0]); // copying command
+
+	if (index == 0){
+		close(1);
+		dup2(fd[1], 1);
+	}
+
+	if (index == 1){
+		char buf[1000];
+		read(fd[0],&buf,1000);
+		cout << buf;
+	}
+	execvp(temp , cmd);
+		
+	close(fd[0]);
+	close(fd[1]);
 }	
 
 int main() {
@@ -286,11 +297,11 @@ int main() {
 
 						char** commands = getAllCommands(str, noOfCmd, operations);
 						//cout << "Number of commands: " << noOfCmd << endl;
-						
-						
+						int fd[2];
+						pipe(fd);
+						int std_out = dup(1);
 						for (int i =0; i < noOfCmd; i++){
-							int fd[2];
-							pipe(fd);
+							
 							pid_t retVal = fork();
 
 							if (retVal > 0){
@@ -304,8 +315,8 @@ int main() {
 
 								wait(NULL);
 
-								close(fd[1]);
-								close(fd[0]);
+								// close(fd[1]);
+								// close(fd[0]);
 							}
 
 	                        if (retVal == 0) {
@@ -317,11 +328,24 @@ int main() {
 								read(fd[0], &tempCmd, len);
 								tempCmd [len] = '\0';
 								cout << "Command going to run: " << tempCmd << endl << endl;
-								runPipeCommand(tempCmd,i,fd);	
-
+								//runPipeCommand(tempCmd,i,fd);
 								
-								close(fd[1]);
-								close(fd[0]);
+								if (i == 0 ){
+									
+									dup2(fd[1],1);
+
+									int s =0;
+									char** cmd = getCommand(tempCmd, s);
+									execvp(cmd[0], cmd);
+								}
+
+								if (i == 1){
+									dup2(fd[0],0);
+									dup2(fd[1],std_out);
+									int s =0;
+									char** cmd = getCommand(tempCmd, s);
+									execvp(cmd[0], cmd);
+								}
 							}
 
 							if (retVal < 0){
