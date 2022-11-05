@@ -258,7 +258,7 @@ int main() {
 		char buff[250]; // to store current working directory
 		getcwd(buff,250);
 		
-		cout<< buff <<" Enter Command: ";
+		cout<< "\n\n" <<buff <<" Enter Command: ";
 		getline(cin, buffer);
 			
 		if (buffer.compare("exit") != 0) {
@@ -289,30 +289,67 @@ int main() {
 						pipe(fd);
 						
 						for (int i =0; i < noOfCmd; i++){
-							
+
 							pid_t retVal = fork();
 							char* cmd = commands[i];
 							
+							
 							if (retVal > 0){
 								wait(NULL);
-								cout << "Paren";
-								close(fd[1]);
-								dup2(fd[0], STDIN_FILENO);
-								close(fd[0]);
-								int s =0; 
-								char** runCmd = getCommand(cmd,s);
-								execvp(runCmd[0],runCmd);
 							}
 
 	                        if (retVal == 0) {
-								cout << "chi;d";
-								if (operations[0] == '|'){
-									dup2(fd[1], 1);
-									//close(fd[1]);
-									int s =0;
-									char** runCmd = getCommand(cmd,s);
-									execvp(runCmd[0], runCmd);
+								if (i == 0 && operations[0] == '|'){
+									int p = fork();
+									if (p==0){
+
+										close(fd[0]);
+										dup2(fd[1], STDOUT_FILENO);
+										close(fd[1]);
+										int s =0;
+										char** runCmd = getCommand(cmd,s);
+										execvp(runCmd[0], runCmd);
+										
+									}
 								}
+
+								if (i != 0 && operations[i] != '|' && operations[i] != '<' && operations[i] != '>'){
+
+									int p = fork();
+
+									if (p == 0){
+
+										close(fd[1]);
+										dup2(fd[0], 0);
+										close(fd[0]);
+
+										int s =0;
+										char** runCmd = getCommand(cmd,s);
+										execvp(runCmd[0], runCmd);
+			
+									}
+									
+								}
+
+								if (i != 0 && operations[i] == '|'){
+									int p = fork();
+									if (p==0){
+
+
+										dup2(fd[0], 0);
+										dup2(fd[1], STDOUT_FILENO);
+
+										close(fd[0]);
+										close(fd[1]);
+										int s =0;
+										char** runCmd = getCommand(cmd,s);
+										execvp(runCmd[0], runCmd);	
+									}
+								}
+								if (operations[i] == '>'){
+									
+								}
+
 							}
 
 							if (retVal < 0){
