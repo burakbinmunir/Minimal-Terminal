@@ -285,6 +285,10 @@ int main() {
 
 						char** commands = getAllCommands(str, noOfCmd, operations);
 						//cout << "Number of commands: " << noOfCmd << endl;
+						for (int index =0 ; index < noOfCmd; index++)
+						{
+							cout << commands[index];
+						}
 						int fd[2];
 						pipe(fd);
 						
