@@ -355,7 +355,7 @@ int main() {
 		char buff[250]; // to store current working directory
 		getcwd(buff,250);
 		
-		cout<< "\n\n" <<buff <<" Enter Command: ";
+		cout<< "\n\n" <<" Enter Command: ";
 		getline(cin, buffer);
 			
 		if (buffer.compare("exit") != 0) {
@@ -384,17 +384,16 @@ int main() {
 						//cout << "Number of commands: " << noOfCmd << endl;
 						for (int i=0; i < noOfCmd; i++) {
 							cout << operations[i] << endl;
-							cout << operations[i] << endl;
 						}
 							
 						int fd[2];
 						pipe(fd);
 						
 					
-					
+
 						for (int i =0; i < (noOfCmd + 1); i++){
-						
 							pid_t retVal = fork();
+							
 							char* cmd = commands[i];
 							
 
@@ -403,6 +402,7 @@ int main() {
 							}
 							
 	                        			if (retVal == 0 ) {
+							
 								int id = fork();
 								if (id ==0){
 									if (operations[i] == '>' || operations[i] == '<'){ // output redirection
@@ -438,6 +438,7 @@ int main() {
 												pipeInput = true;
 											if (operations[i + 1] == '|' || i == noOfCmd -1)
 												pipeOutput = true;
+												
 										}
 										
 									
@@ -461,6 +462,7 @@ int main() {
 									
 								}
 								
+
 
 							}
 							if (retVal < 0){
