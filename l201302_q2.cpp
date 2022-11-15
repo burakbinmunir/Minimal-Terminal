@@ -282,7 +282,7 @@ int main() {
 			}
 		}
 		else {
-			 break;	// to stop the program
+			 exit(1);	// to stop the program
 		}
 		if (successExecution && !partOne)
 			historyCmd.push_back(buffer);
