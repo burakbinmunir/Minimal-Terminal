@@ -9,6 +9,7 @@
 #include<fcntl.h>
 using namespace std;
 
+// for getting char array
 char* getCharArray(string str) {
 	char* arr = new char[str.size() + 1];
 
@@ -355,7 +356,7 @@ int main() {
 		char buff[250]; // to store current working directory
 		getcwd(buff,250);
 		
-		cout<< "\n\n" <<" Enter Command: ";
+		cout<< "$ ";
 		getline(cin, buffer);
 			
 		if (buffer.compare("exit") != 0) {
@@ -382,10 +383,7 @@ int main() {
 
 						char** commands = getAllCommands(str, noOfCmd, operations);
 						//cout << "Number of commands: " << noOfCmd << endl;
-						for (int i=0; i < noOfCmd; i++) {
-							cout << operations[i] << endl;
-						}
-							
+						
 						int fd[2];
 						pipe(fd);
 						
