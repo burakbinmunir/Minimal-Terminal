@@ -44,9 +44,13 @@ char* returnForwardString(string str, int index) {
 	if (str[index] == '>' || str[index] == '<')
 		index++;
 	else
-		if (str[index] == '0' || str[index] == '1')
+		if (str[index] == '0' || str[index] == '1' )
 			index += 2;
 
+	while(str[index] == ' ')
+	{
+		index++;
+	}
 	 // checking for next delimeter
 	int end = 0;
 	bool flag = true;
@@ -59,14 +63,18 @@ char* returnForwardString(string str, int index) {
 			end++;
 		i++;
 	}
-	
 	char* charArr = new char[end + 1];
 	int c = 0;
-	for (int a = index; a < end; a++)
+	
+	for (int a = index; a < (index + end); a++){
 		charArr[c] = str[a];
+		c++;
+	}
 
 	charArr[c] = '\0';
-	return charArr;
+	if (strlen(charArr) > 1)
+		return charArr;
+	else return nullptr;
 }
 
 
@@ -150,12 +158,10 @@ bool checkDelim(char* delim, int index) {
 		return true;
 	}
 	else {
-		if (delim[index] == '1')
-			if (delim[index + 1] == '>')
+		if (delim[index] == '1' && delim[index] + 1 == '>')
 				return true;
 
-		if (delim[index] == '0')
-			if (delim[index] == '<')
+		if (delim[index] == '0' && delim[index] == '<')
 				return true;
 
 		return false;
@@ -179,12 +185,20 @@ int numberOfCommands(char* buffer, char*& operations){
 		if (checkDelim(buffer, index))
 			size++;
 	}
-	//cout << "Size is: " << size << endl;
+	cout << "Size is: " << size << endl;
 
-	operations = new char[size  +2];
+	operations = new char[size + 1];
 	int counter = 0;
 	for (int index = 0; index < strlen(buffer); index++){
 		if (checkDelim(buffer, index)){
+			if (operations[index] == '0'){
+				operations[counter] = '<';
+				index++;
+			}
+			if (operations[index] == '1'){
+				operations[counter] = '>';
+				index++;
+			}
 			operations[counter] = buffer[index];
 			counter++;
 		}
@@ -195,7 +209,7 @@ int numberOfCommands(char* buffer, char*& operations){
 }
 
 char** getAllCommands(char* buffer, int& noOfCmd, char*& operations){
-	noOfCmd = numberOfCommands(buffer, operations)  +1;
+	noOfCmd = numberOfCommands(buffer, operations);
 	
 	char** allCommands = new char*[noOfCmd];
 	int counter = 0;
@@ -204,7 +218,7 @@ char** getAllCommands(char* buffer, int& noOfCmd, char*& operations){
 		int startIndex = i;
 		bool flag = true;
 		char* tempCommand = nullptr;
-
+		char* forwardCommand = nullptr;
 		while(flag == true && i < strlen(buffer)){
 			if (checkDelim(buffer, i) || i == strlen(buffer) - 1){
 				
@@ -216,9 +230,10 @@ char** getAllCommands(char* buffer, int& noOfCmd, char*& operations){
 						tempCommand = returnBackString(buffer, startIndex + 1, i);
 					}
 					else{
-						if (buffer[i] == '0' || buffer[i] == '1' || buffer[i] == '>' || buffer[i] == '<') {
+						if (buffer[i] == '0' && buffer[i +1] == '<' || buffer[i] == '1' && buffer[i+1] == '>' || buffer[i] == '>' || buffer[i] == '<') {
+
 							tempCommand = returnBackString(buffer, startIndex, i - 2);
-							tempCommand = returnForwardString(buffer, i + 2);
+							forwardCommand = returnForwardString(buffer, i);
 						}
 					}
 				}
@@ -228,23 +243,105 @@ char** getAllCommands(char* buffer, int& noOfCmd, char*& operations){
 			i++;
 		}
 		allCommands[counter] = tempCommand;
+		if (forwardCommand != nullptr){
+			counter++;
+			allCommands[counter] = forwardCommand;
+		}
 		//cout << allCommands[counter] << endl;
 		counter++;
 	}
 	return allCommands;
 }
 
-void runPipeCommand(char* command, int index, int fd[]){
+void runPipeCommand(char* command, int fd[2],bool pipeInput, bool pipeOutput) {
+
+	if (pipeInput == true)
+	{
+		close(0);
+		dup2(fd[0],0);
+	}
+	
+	if (pipeOutput == true){
+		close(1);
+		dup2(fd[1],1);
+	}	
+	
 	int size = 0;
 	char** cmd = getCommand(command, size);
 	char * temp = new char[strlen(cmd[0])];
 		
 	strcpy(temp,"/bin/");
 	strcpy(temp,cmd[0]); // copying command
-
+	if (execvp(temp,cmd) < 0 )
+		cout << "Error prone command" << endl;
 	close(fd[0]);
 	close(fd[1]);
 }	
+
+void runRedirectCmd(char* command,char* file, int fd[2], bool pipeInput, bool pipeOutput, char op)
+{
+	int id = fork();
+	if (id == 0) {
+		if (pipeInput == true) 
+		{
+			close(0);
+			dup2(fd[0],0);
+		}
+		
+		if (pipeOutput == true)
+		{
+			close(1);
+			dup2(fd[1], 1);
+		}
+		
+		if (op == '>'){
+
+			int filefd = open (file, O_CREAT | O_RDWR, 0664);
+			if (filefd == -1)	return;
+			
+			close(1);
+			dup2(filefd,1); // directing output to fifo
+			
+			int size = 0;
+			char** cmd = getCommand(command, size);
+			char * temp = new char[strlen(cmd[0])];
+			
+			strcpy(temp,"/bin/");
+			strcpy(temp,cmd[0]);
+			if (execvp(temp, cmd) < 0)
+				cout << "Error prone command" << endl;
+		}
+		
+		if (op == '<'){
+			int filefd = open (file, O_CREAT | O_RDWR, 0664);
+			if (filefd == -1)	return;
+			
+			close(0);
+			dup2(filefd,0);
+			
+			int size = 0;
+			char** cmd = getCommand(command, size);
+			char * temp = new char[strlen(cmd[0])];
+			
+			strcpy(temp,"/bin/");
+			strcpy(temp,cmd[0]);
+			if (execvp(temp, cmd) < 0)
+				cout << "Error prone command" << endl;
+		}
+		
+	}
+	
+	if (id < 0 )
+	{
+		cout << "Command cannot be executed" << endl;
+	}
+	
+	if (id > 0 ) {
+		wait(NULL);
+	}
+	close(fd[0]);
+	close(fd[1]);
+}
 
 int main() {
 
@@ -285,77 +382,76 @@ int main() {
 
 						char** commands = getAllCommands(str, noOfCmd, operations);
 						//cout << "Number of commands: " << noOfCmd << endl;
-						for (int index =0 ; index < noOfCmd; index++)
-						{
-							cout << commands[index];
-						}
+						for (int i=0; i < noOfCmd; i++)
+							cout << operations[i] << endl;
 						int fd[2];
 						pipe(fd);
 						
-						for (int i =0; i < noOfCmd; i++){
-
+						for (int i =0; i < noOfCmd + 1; i++){
+						
+							bool forkFlag = true;
 							pid_t retVal = fork();
 							char* cmd = commands[i];
 							
-							
+
 							if (retVal > 0){
 								wait(NULL);
 							}
+							
+	                        			if (retVal == 0 && forkFlag == true) {
+								int id = fork();
+								
+								if (id ==0){
+									if (operations[i] == '>' || operations[i] == '<'){ // output redirection
+										bool pipeInput = false;
+										bool pipeOutput = false;
+										if ( i > 0 ){
+										
+											if (operations[i-1] == '|')
+												pipeInput = true;									
+											
+										}
+										
+										if (operations[i+1] == '|')	pipeOutput = true;
+										
+										runRedirectCmd(commands[i],commands[i+1],fd,pipeInput,pipeOutput, operations[i]);		
+									}
+									
+									
+									
+									if (operations[i] == '|'){ // pipe redirection
+										bool pipeOutput = false;
+										bool pipeInput = false;
+										
+										if (i ==0 )
+										{
+											pipeOutput = true;
+											pipeInput = false;
+										}
+										
 
-	                        if (retVal == 0) {
-								if (i == 0 && operations[0] == '|'){
-									int p = fork();
-									if (p==0){
-
-										close(fd[0]);
-										dup2(fd[1], STDOUT_FILENO);
-										close(fd[1]);
-										int s =0;
-										char** runCmd = getCommand(cmd,s);
-										execvp(runCmd[0], runCmd);
+										if (i > 0){
+											if (operations[i-1] == '|')
+												pipeInput = true;
+											if (operations[i + 1] == '|' && i < strlen(operations) )
+												pipeOutput = true;
+										}
+										
+										runPipeCommand(commands[i], fd, pipeInput, pipeOutput);
 										
 									}
-								}
-
-								if (i != 0 && operations[i] != '|' && operations[i] != '<' && operations[i] != '>'){
-
-									int p = fork();
-
-									if (p == 0){
-
-										close(fd[1]);
-										dup2(fd[0], 0);
-										close(fd[0]);
-
-										int s =0;
-										char** runCmd = getCommand(cmd,s);
-										execvp(runCmd[0], runCmd);
-			
-									}
-									
-								}
-
-								if (i != 0 && operations[i] == '|'){
-									int p = fork();
-									if (p==0){
-
-
-										dup2(fd[0], 0);
-										dup2(fd[1], STDOUT_FILENO);
-
-										close(fd[0]);
-										close(fd[1]);
-										int s =0;
-										char** runCmd = getCommand(cmd,s);
-										execvp(runCmd[0], runCmd);	
+									if (i == noOfCmd){
+										bool pipeInput = false;
+										bool pipeOutput = false;
+										if (operations[i-1] == '|')
+											pipeInput = true;
+										runPipeCommand(commands[i], fd, pipeInput, pipeOutput);
 									}
 								}
-								if (operations[i] == '>'){
-									
-								}
+								
 
 							}
-
+							forkFlag = false;
 							if (retVal < 0){
 								cout << "Error in forking";
 								perror("fork");
