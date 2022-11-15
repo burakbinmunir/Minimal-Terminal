@@ -382,14 +382,18 @@ int main() {
 
 						char** commands = getAllCommands(str, noOfCmd, operations);
 						//cout << "Number of commands: " << noOfCmd << endl;
-						for (int i=0; i < noOfCmd; i++)
+						for (int i=0; i < noOfCmd; i++) {
 							cout << operations[i] << endl;
+							cout << operations[i] << endl;
+						}
+							
 						int fd[2];
 						pipe(fd);
 						
-						for (int i =0; i < noOfCmd + 1; i++){
+					
+					
+						for (int i =0; i < (noOfCmd + 1); i++){
 						
-							bool forkFlag = true;
 							pid_t retVal = fork();
 							char* cmd = commands[i];
 							
@@ -398,9 +402,8 @@ int main() {
 								wait(NULL);
 							}
 							
-	                        			if (retVal == 0 && forkFlag == true) {
+	                        			if (retVal == 0 ) {
 								int id = fork();
-								
 								if (id ==0){
 									if (operations[i] == '>' || operations[i] == '<'){ // output redirection
 										bool pipeInput = false;
@@ -413,7 +416,7 @@ int main() {
 										}
 										
 										if (operations[i+1] == '|')	pipeOutput = true;
-										
+
 										runRedirectCmd(commands[i],commands[i+1],fd,pipeInput,pipeOutput, operations[i]);		
 									}
 									
@@ -433,25 +436,33 @@ int main() {
 										if (i > 0){
 											if (operations[i-1] == '|')
 												pipeInput = true;
-											if (operations[i + 1] == '|' && i < strlen(operations) )
+											if (operations[i + 1] == '|' || i == noOfCmd -1)
 												pipeOutput = true;
 										}
+										
+									
 										
 										runPipeCommand(commands[i], fd, pipeInput, pipeOutput);
 										
 									}
 									if (i == noOfCmd){
-										bool pipeInput = false;
-										bool pipeOutput = false;
-										if (operations[i-1] == '|')
-											pipeInput = true;
-										runPipeCommand(commands[i], fd, pipeInput, pipeOutput);
+									//cout << " I equa; "<<i<<" " << commands[i] << " " << operations[i-1] <<endl;
+											bool pipeInput = false;
+											bool pipeOutput = false;
+											
+											if (operations[i-1] == '|')
+												pipeInput = true;
+											pipeOutput = false;
+											//cout << " pipe input: " << pipeInput << endl; 
+											runPipeCommand(commands[i], fd, pipeInput, pipeOutput);
+										
 									}
+									
+									
 								}
 								
 
 							}
-							forkFlag = false;
 							if (retVal < 0){
 								cout << "Error in forking";
 								perror("fork");
